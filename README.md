@@ -28,7 +28,7 @@ esp8266.setDataByteArray(data, 32);
 // start listening on port 1066
 esp8266.configureServer(1066);
 
-// now connect and send data from a client (e.g. 
+// now connect and send data from a client
 
 // check for data (do in loop)
 if (esp8266.readSerial()) {
