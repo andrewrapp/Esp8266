@@ -9,6 +9,10 @@ I've written a guide for getting started with the esp8266 https://medium.com/@no
 
 Once the esp8266 has the above firmware and is connected to a wifi network it's ready for use with this library
 
+Caveats: Don't send more than around 40 bytes at a time, including "\r\n" or it will fail. I've tested with 32 bytes and no issues so far. It's recommended to send back an ACK before sending more data from the client or the serial buffer can overflow.
+
+Performance: At 9600 baud I see around 8 transmissions of 32 bytes each, per second. This includes the roundtrip ACK.
+
 Example:
 
 ```
