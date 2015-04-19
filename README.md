@@ -1,9 +1,13 @@
 # Esp8266
-Arduino library for esp8266 with AT firmware. Tested with firmware https://github.com/espressif/esp8266_at.git @ commit 4d00060634d4c74267ad38d27aa58805680a872c
+Arduino library for esp8266 with AT firmware
 
-Currently supports esp in server mode only.
+Currently supports esp in server mode
 
-First configure the esp to connect to a wifi network and get it's ip address. See https://medium.com/@nowir3s/getting-started-with-esp8266-875fb54441d6
+There are many versions of AT firmware floating around for the esp device. This library works with AT firmware from expressif https://github.com/espressif/esp8266_at.git (commit 4d000)
+
+I've written a guide for getting started with the esp8266 https://medium.com/@nowir3s/getting-started-with-esp8266-875fb54441d6
+
+Once the esp8266 has the above firmware and is connected to a wifi network it's ready for use with this library
 
 Example:
 
