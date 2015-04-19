@@ -3,7 +3,7 @@ Arduino library for esp8266 with AT firmware
 
 Currently supports esp as a server
 
-First configure the esp to connect to a wifi network and get it's ip address. This configuration will persist power cycles
+First configure the esp to connect to a wifi network and get it's ip address. See https://medium.com/@nowir3s/getting-started-with-esp8266-875fb54441d6
 
 Example:
 
