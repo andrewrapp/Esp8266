@@ -33,6 +33,7 @@
 
 #define SUCCESS 0
 #define ERROR -1
+#define TIMEOUT -2 
 
 #define UNKNOWN_COMMAND -1
 #define IPD_COMMAND 1
@@ -42,7 +43,6 @@
 #define NO_COMMAND 0
 #define NO_RESULT 0
 
-#define ERR -1
 #define ERR_NOT_CONNECTED -10
 #define ERR_CIPSEND_TIMEOUT -11
 #define ERR_CIPSEND_REPLY_LEN -12
@@ -65,7 +65,7 @@ public:
 	Stream* getEspSerial();
 	void setEspSerial(Stream* espSerial);
 	//void setup();
-	void resetEsp8266();
+	void restartEsp8266();
 	int printDebug(char* text);
 	void configureEsp8266();
 	boolean configureServer(int listenPort);
@@ -79,8 +79,6 @@ public:
 	int closeConnection(int id);	
 	int startServer(int listenPort);
 	int stopServer();
-	void printByteArray(uint8_t buf[], int len);
-	void printCbuf(char cbuf[], int len);
 	boolean readSerial();
 	// Data array for incoming IPD commands
 	// choose one or the other. only one will be used if both are set
@@ -98,12 +96,12 @@ public:
 	bool isError();	
 	bool isData();	
 	bool isConnect();
-	bool isDisconnect();
+	bool isDisconnect();;
+	void debug(uint8_t);	
+	void debug(char cbuf[]);	
+	void debug(char cbuf[], int len);	
+	void debug (uint8_t message[], int length);	
 private:	
-	// TODO insated of #ifdef DEBUG
-	// void debug (char message[]);
-	// void debug (int);
-	// void debug (uint8_t message[]);
 	bool find(char pattern[], int timeout);
 	int send(int channel, char charMessage[], uint8_t byteMessage[], int byteLength);
 	int startStopServer(bool start, int listenPort);
@@ -128,10 +126,10 @@ private:
 	char *dataCharacterArray;
 	uint8_t characterArraySize;
 	//int listenPort;
-	Stream* debug;
+	Stream* debugStream;
 	Stream* esp;
 	long resetEvery;
-	long lastReset;
+	long lastRestart;
 	uint8_t dataLength;
 	uint8_t channel;
 	int lastResult;

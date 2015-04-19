@@ -31,6 +31,7 @@ void setup() {
   // make sure this is big enough to read your packet or you'll get unexpected results
   esp8266.setDataByteArray(data, 32);
   // listen on port 80
+  
   while (!esp8266.configureServer(serverPort)) {
       Serial.println("Failed to configure server");
       delay(3000);
@@ -45,14 +46,15 @@ void loop() {
       Serial.print(" on channel ");
       Serial.println(esp8266.getChannel());
       
+      // output to debug
+      //esp8266.debug(data, 32);
+      
       esp8266.send(esp8266.getChannel(), "ok");
       
       // or send byte array
-//      uint8_t buf[3];
+//      uint8_t buf[1];
 //      buf[0] = 0;
-//      buf[1] = 1;
-//      buf[2] = 2;
-//      esp8266.send(esp8266.getChannel(), buf, 3);
+//      esp8266.send(esp8266.getChannel(), buf, 1);
     } else if (esp8266.isConnect()) {
       Serial.print("Connected on channel ");
       Serial.println(esp8266.getChannel());     
@@ -70,7 +72,7 @@ void loop() {
       Serial.print("Resetting");
       
       // assume the worst and reset
-      esp8266.resetEsp8266();
+      esp8266.restartEsp8266();
       // need to apply server config which is lost on restart
       esp8266.configureServer(serverPort);
     }

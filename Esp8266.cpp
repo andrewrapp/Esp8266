@@ -37,11 +37,11 @@ Stream* Esp8266::getEspSerial() {
 }
 
 Stream* Esp8266::getDebugSerial() {
-  return debug;
+  return debugStream;
 }
 
 void Esp8266::setDebugSerial(Stream* debugSerial) {
-  debug = debugSerial;
+  debugStream = debugSerial;
 }
 
 // entry point.. lib can't function w/o serial port
@@ -106,7 +106,7 @@ void Esp8266::closeAllConnections() {
   }
 }
 
-void Esp8266::resetEsp8266() {
+void Esp8266::restartEsp8266() {
   closeAllConnections();
   // TODO only if running as server
   stopServer();
@@ -151,7 +151,7 @@ AT+C(160)M(21)IY(21)I(138)b(138)(138)(254)1(13)(13)(10)no(32)change(13)(10)<--[3
   // startServer(80);
     
   resetCbuf(cbuf, BUFFER_SIZE);
-  lastReset = millis();
+  lastRestart = millis();
 }
 
 // config to apply after reset or power cycle. everthing else should be retained
@@ -177,20 +177,14 @@ int Esp8266::sendAt() {
 // TODO rename atRestart
 int Esp8266::sendRestart() {
   getEspSerial()->print("AT+RST\r\n");
-  
-  readFor(2500);  
-  
-  if (strstr(cbuf, "OK") == NULL) {
-      #ifdef DEBUG
-        printDebug("RST fail");        
-      #endif
-      
-      return ERROR;
+
+  // search for the patter that restart ends with
+  if (find((char[]){'V',175,'H','248'}, 5000)) {
+    lastRestart = millis();  
+    return SUCCESS;
   }
 
-  lastReset = millis();  
-  
-  return SUCCESS;
+  return ERROR;
 }  
 
 int Esp8266::sendCwmode() {
@@ -325,12 +319,12 @@ int Esp8266::startStopServer(bool start, int listenPort) {
 }
 
 void Esp8266::checkReset() {
-  if (millis() - lastReset > resetEvery) {
+  if (millis() - lastRestart > resetEvery) {
     #ifdef DEBUG
       getDebugSerial()->println("Resetting");
     #endif
     
-    resetEsp8266();
+    restartEsp8266();
 //    configureEsp8266();
   } 
 }
@@ -341,9 +335,19 @@ void Esp8266::resetCbuf(char cbuf[], int size) {
  } 
 }
 
-void Esp8266::printCbuf(char cbuf[], int len) {
+void Esp8266::debug(char cbuf[]) {
+  debug(cbuf, strlen(cbuf));
+}
+
+void Esp8266::debug(uint8_t b) {
+  getDebugSerial()->print(b);
+}
+
+void Esp8266::debug(char cbuf[], int len) {
   #ifdef DEBUG  
-    long start = millis();
+    if (getDebugSerial() == NULL) {
+      return;
+    }
   
     for (int i = 0; i < len; i++) {
         if (cbuf[i] <= 32 || cbuf[i] >= 127) {
@@ -355,16 +359,15 @@ void Esp8266::printCbuf(char cbuf[], int len) {
           getDebugSerial()->write(cbuf[i]);
         }
     }
-   
-    long end = millis();
-    getDebugSerial()->print(" in ");
-    getDebugSerial()->print(end - start);
-    getDebugSerial()->println("ms");
   #endif
 }
 
-void Esp8266::printByteArray(uint8_t buf[], int len) {
-  #ifdef DEBUG    
+void Esp8266::debug(uint8_t buf[], int len) {
+  #ifdef DEBUG
+    if (getDebugSerial() == NULL) {
+      return;
+    }    
+
     for (int i = 0; i < len; i++) {
       getDebugSerial()->print("(");
       getDebugSerial()->print(buf[i]);
@@ -415,6 +418,7 @@ bool Esp8266::find(char pattern[], int timeout) {
   while (millis() - start < timeout) {          
     if (getEspSerial()->available() > 0) {
       uint8_t in = getEspSerial()->read();
+      debug(in);
       
       if (pattern[matchAt] == (char) in) {
         // match
@@ -490,7 +494,8 @@ int Esp8266::readBytesUntil(char cbuf[], uint8_t match, int maxReadLen, int time
   return -1;  
 }
 
-// debugging aid
+// debugging aid and for AT commands that have varying replies
+// FIXME don't read cbuf beyone the length!
 int Esp8266::readFor(int timeout) {
   long start = millis();
   long lastReadAt = 0;
@@ -562,14 +567,6 @@ int Esp8266::getCharDigitsLength(int number) {
     return 3;
   }
 }  
-
-// int Esp8266::send(int channel, char message[]) {
-//   send(channel, message, NULL);
-// }
-
-// int Esp8266::send(int channel, uint8_t message[], uint8_t length) {
-//   send(channel, NULL, message);
-// }
 
 int Esp8266::send(int channel, char message[]) {
   return send(channel, message, NULL, 0);
@@ -648,7 +645,7 @@ int Esp8266::send(int channel, char charMessage[], uint8_t byteMessage[], int by
   
   #ifdef DEBUG 
     getDebugSerial()->println("CIPSEND reply");
-    printCbuf(cbuf, cmdLen);
+    debug(cbuf, cmdLen);
   #endif
   
   // send data to client
@@ -675,44 +672,12 @@ int Esp8266::send(int channel, char charMessage[], uint8_t byteMessage[], int by
 
   // look for SEND OK
   if (find("SEND OK", 5000)) {
+    // eat remaining bytes
     getEspSerial()->read();
     getEspSerial()->read();
   } else {
     return ERROR;
   }
-
-  // int len =  0;
-  // if (charMessage != NULL) {
-  //   // FIXME charMessage must not exceed cbuf size + 12
-  //   len = readChars(cbuf, 0, strlen(charMessage) + 12, 5000);
-  // } else if (byteMessage != NULL) {
-  //   len = readBytes(NULL, 0, byteLength + 12, 5000);
-  // }
-  
-  // if (len == -1) {
-  //   #ifdef DEBUG 
-  //     getDebugSerial()->println("Data send timeout");            
-  //   #endif
-  //   return -11;
-  // } else if (len != 12 + strlen(charMessage)) {
-  //   #ifdef DEBUG 
-  //     getDebugSerial()->println("Reply len err");                  
-  //   #endif     
-  //   return -12; 
-  // }
-
-  // if (strstr(cbuf, "OK") == NULL) {
-  //   #ifdef DEBUG     
-  //     getDebugSerial()->print("Error: ");
-  //     getDebugSerial()->println(cbuf);
-  //   #endif
-  //   return -9;
-  // }
-  
-  // #ifdef DEBUG     
-  //   getDebugSerial()->println("Data reply");
-  //   printCbuf(cbuf, len);        
-  // #endif  
   
   return SUCCESS;
 }
@@ -812,9 +777,9 @@ int Esp8266::handleData() {
   #ifdef DEBUG
     getDebugSerial()->print("Data:");   
     if (dataByteArray != NULL) {
-      printByteArray(dataByteArray, dataLength);
+      debug(dataByteArray, dataLength);
     } else if (dataCharacterArray != NULL) {
-      printCbuf(dataCharacterArray, dataLength);      
+      debug(dataCharacterArray, dataLength);      
     }
     getDebugSerial()->println("");  
   #endif
@@ -893,7 +858,7 @@ boolean Esp8266::readSerial() {
     int len = readChars(cbuf, 0, COMMAND_LEN, 1000);
     
     #ifdef DEBUG
-      printCbuf(cbuf, COMMAND_LEN);
+      debug(cbuf, COMMAND_LEN);
     #endif
     
     // not using Serial.find because if it doesn't match we lose the data. so not helpful
