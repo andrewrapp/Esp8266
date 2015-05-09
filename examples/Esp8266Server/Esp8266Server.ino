@@ -1,18 +1,16 @@
 #include <Esp8266.h>
 #include <SoftwareSerial.h>
 
-// receives ESP TX pin
-#define ESP_RX 3
-// transmits to ESP RX pin
-#define ESP_TX 4
+// If using a 3.3V Pro you will likely encounter problems uploading at 115.2K. To remedy, I recommend running optiboot at 57.6K
 
 // Keep in mind that Serial is directional and should be wired as follows:
 // TX (device 1) -> RX (device 2)
 // RX (device 1) <- TX (device 2)
-// So, connect the
-//    ESP8266 TX to the Arduino RX pin number ESP_RX
-// and the 
-//    ESP8266 RX to the Arduino TX pin number ESP_TX
+
+// receives ESP TX pin
+#define ESP_RX 3
+// transmits to ESP RX pin
+#define ESP_TX 4
 
 SoftwareSerial espSerial(ESP_RX, ESP_TX);
 Esp8266 esp8266 = Esp8266();
@@ -31,7 +29,12 @@ void setup() {
   // make sure this is big enough to read your packet or you'll get unexpected results
   esp8266.setDataByteArray(data, 32);
   // listen on port 80
-  
+
+//  if (esp8266.configure("ssid","password") != SUCCESS) {
+//    Serial.println("Configure failed");
+//    for (;;) {}
+//  }
+
   while (!esp8266.configureServer(serverPort)) {
       Serial.println("Failed to configure server");
       delay(3000);
@@ -41,15 +44,26 @@ void setup() {
 void loop() {
   if (esp8266.readSerial()) {
     if (esp8266.isData()) {  
+      /*
       Serial.print("Got data, len ");
       Serial.print(esp8266.getDataLength());
       Serial.print(" on channel ");
       Serial.println(esp8266.getChannel());
+      */
+      
+      // see what we got
+      for (int i = 0; i < esp8266.getDataLength(); i++) {
+        Serial.print(data[i]);  
+      }
       
       // output to debug
       //esp8266.debug(data, 32);
       
-      esp8266.send(esp8266.getChannel(), "ok");
+      if (esp8266.send(esp8266.getChannel(), "ok") == SUCCESS) {
+       // success 
+      } else {
+       // failed to send 
+      }
       
       // or send byte array
 //      uint8_t buf[1];

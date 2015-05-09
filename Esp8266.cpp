@@ -57,9 +57,17 @@ void Esp8266::setDataByteArray(uint8_t *data, uint8_t size) {
   byteArraySize = size;
 }
 
+uint8_t* Esp8266::getDataByteArray() {
+  return dataByteArray;
+}
+
 void Esp8266::setDataCharacterArray(char *data, uint8_t size) {
   dataCharacterArray = data;
   characterArraySize = size;
+}
+
+char* Esp8266::getDataCharacterArray() {
+  return dataCharacterArray;
 }
 
 uint8_t Esp8266::getDataLength() {
@@ -121,37 +129,53 @@ int Esp8266::printDebug(char* text) {
   return ERROR;
 }
 
-void Esp8266::configureEsp8266() {
-/*
-<---
-AT(13)(13)(10)(13)(10)OK(13)(10)<--[11c],[14ms],[1w]
-<---
-AT+RST(13)(13)(10)(13)(10)OK(13)(10).|(209)N;(255)P:L(179)(10)BD;G8\(21)E5(205)N^f(5)(161)O'}5"B(201)(168)HHWV.V(175)H(248)<--[58c],[1926ms],[4w]
-<---
-AT+CWMODE=3(13)(13)(10)(13)(10)OK(13)(10)<--[20c],[25ms],[1w]
-<---
-AT+CIFSR(13)(13)(10)+CIFSR:APIP,"192.168.4.1"(13)(10)+CIFSR:APMAC,"1a:fe:34:9b:a7:4c"(13)(10)+CIRTP0.0(10)CRSM,8e4ba4(13)(10)(13)<--[96c],[164ms],[1w]
-<---
-AT+CIPMUX=1(13)(13)(10)(13)(10)OK(13)(10)<--[20c],[25ms],[1w]
-<---
-AT+CPSRV(164)(245)(197)b(138)(138)(138)(138)(254)(13)(13)(10)(13)(10)OK(13)(10)<--[26c],[18ms],[0w]
-<---
-AT+CIPMUX=1(13)(13)(10)(13)(10)OK(13)(10)<--[20c],[24ms],[1w]
-<---
-AT+C(160)M(21)IY(21)I(138)b(138)(138)(254)1(13)(13)(10)no(32)change(13)(10)<--[31c],[21ms],[0w]
-*/
+int Esp8266::configure(char* ssid, char* password) {
+  /*
+  <---
+  AT(13)(13)(10)(13)(10)OK(13)(10)<--[11c],[14ms],[1w]
+  <---
+  AT+RST(13)(13)(10)(13)(10)OK(13)(10).|(209)N;(255)P:L(179)(10)BD;G8\(21)E5(205)N^f(5)(161)O'}5"B(201)(168)HHWV.V(175)H(248)<--[58c],[1926ms],[4w]
+  <---
+  AT+CWMODE=3(13)(13)(10)(13)(10)OK(13)(10)<--[20c],[25ms],[1w]
+  <---
+  AT+CIFSR(13)(13)(10)+CIFSR:APIP,"192.168.4.1"(13)(10)+CIFSR:APMAC,"1a:fe:34:9b:a7:4c"(13)(10)+CIRTP0.0(10)CRSM,8e4ba4(13)(10)(13)<--[96c],[164ms],[1w]
+  <---
+  AT+CIPMUX=1(13)(13)(10)(13)(10)OK(13)(10)<--[20c],[25ms],[1w]
+  <---
+  AT+CPSRV(164)(245)(197)b(138)(138)(138)(138)(254)(13)(13)(10)(13)(10)OK(13)(10)<--[26c],[18ms],[0w]
+  <---
+  AT+CIPMUX=1(13)(13)(10)(13)(10)OK(13)(10)<--[20c],[24ms],[1w]
+  <---
+  AT+C(160)M(21)IY(21)I(138)b(138)(138)(254)1(13)(13)(10)no(32)change(13)(10)<--[31c],[21ms],[0w]
+  */
 
-  sendAt();
-  sendRestart();
-  sendCwmode();
-  //joinNetwork();
-  sendCifsr();
-  // configureServer();
-  // enableMultiConnections();
-  // startServer(80);
-    
   resetCbuf(cbuf, BUFFER_SIZE);
+
+  //sendAt();
+
+  if (sendRestart() != SUCCESS) {
+    debug("Restart failed");
+    return ERROR;
+  }
+
+  if (sendCwmode() != SUCCESS) {
+    debug("CWMODE failed");
+    return ERROR;    
+  }
+
+  if (joinNetwork(ssid, password) != SUCCESS) {
+    debug("Join network failed");
+    return ERROR;    
+  }
+  
+  if (sendCifsr() != SUCCESS) {
+    debug("Cifsr failed");
+    return ERROR;    
+  }
+
   lastRestart = millis();
+
+  return SUCCESS;
 }
 
 // config to apply after reset or power cycle. everthing else should be retained
@@ -178,13 +202,18 @@ int Esp8266::sendAt() {
 int Esp8266::sendRestart() {
   getEspSerial()->print("AT+RST\r\n");
 
-  // search for the patter that restart ends with
-  if (find((char[]){'V',175,'H','248'}, 5000)) {
-    lastRestart = millis();  
-    return SUCCESS;
-  }
+  readFor(5000);
 
-  return ERROR;
+  return SUCCESS;
+  
+  // needs work
+  // search for the pattern that restart ends with
+  // if (find((char[]){'V',175,'H','248'}, 5000)) {
+  //   lastRestart = millis();  
+  //   return SUCCESS;
+  // }
+
+  // return ERROR;
 }  
 
 int Esp8266::sendCwmode() {
@@ -325,7 +354,6 @@ void Esp8266::checkReset() {
     #endif
     
     restartEsp8266();
-//    configureEsp8266();
   } 
 }
 
@@ -340,7 +368,9 @@ void Esp8266::debug(char cbuf[]) {
 }
 
 void Esp8266::debug(uint8_t b) {
-  getDebugSerial()->print(b);
+  #ifdef DEBUG
+    getDebugSerial()->print(b);
+  #endif
 }
 
 void Esp8266::debug(char cbuf[], int len) {
@@ -517,6 +547,11 @@ int Esp8266::readFor(int timeout) {
       }
       
       uint8_t in = getEspSerial()->read();
+
+      if (pos >= BUFFER_SIZE - 1) {
+        pos = 0;
+      }
+
       cbuf[pos] = in;
       
       lastReadAt = millis() - start;
@@ -528,8 +563,6 @@ int Esp8266::readFor(int timeout) {
           getDebugSerial()->print("("); 
           getDebugSerial()->print(in); 
           getDebugSerial()->print(")");
-        #else
-          delay(2);
         #endif
       } else {
         // pass through
@@ -746,7 +779,7 @@ int Esp8266::handleData() {
   int rlen = 0;
 
   if (dataByteArray != NULL) {
-    // TODO check the data array length is <= to dataLength
+    // check the data length is larger than array. if so error out
     if (dataLength > byteArraySize) {
       return -98;
     }
@@ -775,6 +808,7 @@ int Esp8266::handleData() {
   }
   
   #ifdef DEBUG
+    getDebugSerial()->println("");   
     getDebugSerial()->print("Data:");   
     if (dataByteArray != NULL) {
       debug(dataByteArray, dataLength);

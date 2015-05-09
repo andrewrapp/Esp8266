@@ -29,7 +29,8 @@
 #include <inttypes.h>
 #include <SoftwareSerial.h>
 
-#define DEBUG
+// comment to disable DEBUG
+//#define DEBUG
 
 #define SUCCESS 0
 #define ERROR -1
@@ -55,7 +56,7 @@
 #define CLOSED_CMD_LEN 10
 
 // TODO determine min arrary size for parsing AT commands
-#define BUFFER_SIZE 64 
+#define BUFFER_SIZE 128 
 
 class Esp8266 {
 public:
@@ -67,7 +68,7 @@ public:
 	//void setup();
 	void restartEsp8266();
 	int printDebug(char* text);
-	void configureEsp8266();
+	int configure(char* network, char* password);
 	boolean configureServer(int listenPort);
 	void closeAllConnections();
 	int sendAt();
@@ -81,10 +82,14 @@ public:
 	int stopServer();
 	boolean readSerial();
 	// Data array for incoming IPD commands
-	// choose one or the other. only one will be used if both are set
+	// choose byte or character, not both. if both are set one will be choosen, which one? who knows!
 	// allocate enough memeory for the largest data packet sent to device.
 	void setDataByteArray(uint8_t *data, uint8_t size);
 	void setDataCharacterArray(char *data, uint8_t size);
+	// client has this but for convenience
+	uint8_t* getDataByteArray();
+	// client has this but for convenience
+	char* getDataCharacterArray();
 	uint8_t getDataLength();
 	// channel of last command
 	uint8_t getChannel();
