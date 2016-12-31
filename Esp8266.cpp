@@ -27,6 +27,8 @@
 
 #include "HardwareSerial.h"
 
+// TODO add command to get ip address. does not need to parse it!
+ 
 Esp8266::Esp8266() {
   // defaults//zero state
   // uint8_t resetPin = 9;
@@ -163,6 +165,7 @@ int Esp8266::configure(char* ssid, char* password) {
     return ERROR;    
   }
 
+  // needs a longer timeout
   if (joinNetwork(ssid, password) != SUCCESS) {
     debug("Join network failed");
     return ERROR;    
@@ -232,7 +235,7 @@ int Esp8266::sendCwmode() {
   return SUCCESS;
 }
 
-// TODO pass arguments
+// TODO make timeout an argument
 int Esp8266::joinNetwork(char* network, char* password) {  
   getEspSerial()->print("AT+CWJAP=\""); 
   getEspSerial()->print(network); 
@@ -240,7 +243,7 @@ int Esp8266::joinNetwork(char* network, char* password) {
   getEspSerial()->print(password);
   getEspSerial()->print("\"\r\n");
   
-  readFor(10000);
+  readFor(20000);
   
   if (strstr(cbuf, "OK") == NULL) {
       #ifdef DEBUG
